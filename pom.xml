@@ -290,6 +290,11 @@
             </dependency>
             <dependency>
                 <groupId>${engineGroupId}</groupId>
+                <artifactId>tanaguru-kafka</artifactId>
+                <version>${engineVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>${engineGroupId}</groupId>
                 <artifactId>tanaguru-statistics</artifactId>
                 <version>${engineVersion}</version>
             </dependency>
