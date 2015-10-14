@@ -3,22 +3,33 @@
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xmlns:int="http://www.springframework.org/schema/integration"
        xmlns:int-kafka="http://www.springframework.org/schema/integration/kafka"
+       xmlns:task="http://www.springframework.org/schema/task"
+       xmlns:context="http://www.springframework.org/schema/context"
 
-       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.3.xsd 
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd 
                 http://www.springframework.org/schema/integration/kafka http://www.springframework.org/schema/integration/kafka/spring-integration-kafka.xsd
-		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd">
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+                http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd
+                http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd">
     <int:channel id="inputFromKafka">
-        <int:queue/>
+        <int:dispatcher task-executor="kafkaMessageExecutor" />
     </int:channel>
+    
+    <context:annotation-config/>
+    <context:component-scan base-package="org.tanaguru.kafka"/>    
+    
+    <int-kafka:zookeeper-connect id="zookeeperConnect"
+                                     zk-connect="192.168.58.181:2181" zk-connection-timeout="6000"
+                                     zk-session-timeout="400" zk-sync-time="200" />
     
     <int-kafka:inbound-channel-adapter
         id="kafkaInboundChannelAdapter" kafka-consumer-context-ref="consumerContext"
         auto-startup="false" channel="inputFromKafka">
         <int:poller fixed-delay="10" time-unit="MILLISECONDS"
-                            max-messages-per-poll="5" />
+                    max-messages-per-poll="5" />
     </int-kafka:inbound-channel-adapter>
     <bean id="consumerProperties"
-              class="org.springframework.beans.factory.config.PropertiesFactoryBean">
+          class="org.springframework.beans.factory.config.PropertiesFactoryBean">
         <property name="properties">
             <props>
                 <prop key="auto.offset.reset">smallest</prop>
@@ -29,15 +40,21 @@
         </property>
     </bean>
     <int-kafka:consumer-context id="consumerContext"
-                                    consumer-timeout="4000" zookeeper-connect="zookeeperConnect" consumer-properties="consumerProperties">
+                                consumer-timeout="4000" zookeeper-connect="zookeeperConnect" consumer-properties="consumerProperties">
         <int-kafka:consumer-configurations>
             <int-kafka:consumer-configuration
-                group-id="mygroup" max-messages="5000">
+                group-id="mygroup" value-decoder="decoder" key-decoder="decoder" max-messages="5000">
                 <int-kafka:topic id="messageExemple" streams="4" />
             </int-kafka:consumer-configuration>
         </int-kafka:consumer-configurations>
     </int-kafka:consumer-context>
-    <int-kafka:zookeeper-connect id="zookeeperConnect"
-                                     zk-connect="192.168.58.181:2181" zk-connection-timeout="6000"
-                                     zk-session-timeout="400" zk-sync-time="200" />
+    
+    <int:outbound-channel-adapter channel="inputFromKafka"
+                                  ref="kafkaConsumer" method="processMessage" />
+    
+    <bean id="decoder"
+          class="org.springframework.integration.kafka.serializer.common.StringDecoder" />
+    <task:executor id="kafkaMessageExecutor" pool-size="0-10"
+                   keep-alive="120" queue-capacity="500" />
+
 </beans>
